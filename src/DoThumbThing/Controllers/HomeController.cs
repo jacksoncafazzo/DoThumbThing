@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Configuration;
 using System.Collections.Generic;
 using System.Net.Http;
 using System.Net.Http.Headers;
@@ -7,13 +8,29 @@ using Microsoft.AspNet.Mvc;
 using RestSharp;
 using RestSharp.Authenticators;
 using Twilio;
+using Newtonsoft.Json.Linq;
+using Newtonsoft.Json;
+using InstaSharp;
+using Microsoft.Extensions.DependencyInjection;
+using System.Text;
+using InstaSharp.Models.Responses;
 
 namespace DoThumbThing.Controllers
 {
     public class HomeController : Controller
     {
-        public IActionResult Index()
+        public async Task<IActionResult> Index()
         {
+            byte[] oAuthResponse;
+            var lilBool = HttpContext.Session.TryGetValue("InstaSharp.AuthInfo", out oAuthResponse);
+            if (!lilBool)
+            {
+                return RedirectToAction("InstagramLogin");
+            } else
+            {
+                var token = Encoding.ASCII.GetString(oAuthResponse);
+                var users = new InstaSharp.Endpoints.Users(config, new OAuthResponse(token));
+            }
             return View();
         }
 
@@ -35,6 +52,8 @@ namespace DoThumbThing.Controllers
         {
             return View();
         }
+
+
 
         [HttpPost]
         public async Task<IActionResult> Send()
@@ -67,7 +86,55 @@ namespace DoThumbThing.Controllers
 
         public IActionResult Message()
         {
+            var sid = "AC8c4f011ae0d7ca6a008f8ab7a2319ebb";
+            var pass = "16053c0481c1f57c090ba8ca5f95a84d";
+
+            var client = new RestClient("https://api.twilio.com/2010-04-01");
+            var request = new RestRequest("Accounts/" + sid + "/Messages.json", Method.GET);
+            client.Authenticator = new HttpBasicAuthenticator(sid, pass);
+
+            var response = client.Execute(request);
+            JObject jsonResponse = (JObject)JsonConvert.DeserializeObject(response.Content);
+            ViewBag.messages = jsonResponse["messages"];//JsonConvert.DeserializeObject<List<Message>>(jsonResponse["messages"].ToString());
+           
             return View("Message");
+        }
+
+        public IActionResult Zillo()
+        {
+            var zid = "X1-ZWz1f9dgwvdq8b_44w9p";
+            var client = new RestClient("http://www.zillo.com/webservice/");
+            var request = new RestRequest("GetSearchResults.htm?zws-id=" + zid + "&address=400 sw 6th avenue" + "&citystatezip=Portland%2C+OR", Method.GET);
+            var response = client.Execute(request);
+
+
+            return Content(response.Content);
+        }
+         
+        InstagramConfig config = new InstagramConfig(ConfigurationManager.AppSettings["clientid"], ConfigurationManager.AppSettings["clientsecret"], ConfigurationManager.AppSettings["uri"]);
+
+        public IActionResult InstagramLogin()
+        {
+            var scopes = new List<OAuth.Scope>();
+            scopes.Add(InstaSharp.OAuth.Scope.Likes);
+            scopes.Add(InstaSharp.OAuth.Scope.Comments);
+            var link = InstaSharp.OAuth.AuthLink(config.OAuthUri + "authorize", config.ClientId, config.RedirectUri, scopes, InstaSharp.OAuth.ResponseType.Code);
+            return Redirect(link);
+        }
+
+        public async Task<IActionResult> OAuth(string code)
+        {
+            //add this code to the auth object
+            var auth = new OAuth(config);
+
+            //now call back to instgram and include the code we got along with client secret
+            var oauthResponse = await auth.RequestToken(code);
+
+            // both the client secret and token are considered 
+            HttpContext.Session.Set("InstaSharp.AuthInfo", Encoding.ASCII.GetBytes(oauthResponse.AccessToken));
+
+            return View("Index");
+
         }
     }
 }

@@ -9,3 +9,12 @@
 <div>Response: @ViewBag.response</div>
 <div>To: @ViewBag.number</div>
 <div>Message: @ViewBag.message</div>
+<ul>
+
+
+    @foreach (var message in ViewBag.messages)
+    {
+        <li>@message.body</li>
+
+        }
+    </ul>

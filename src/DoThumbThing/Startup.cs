@@ -55,6 +55,7 @@ namespace DoThumbThing
                 .AddDefaultTokenProviders();
 
             services.AddMvc();
+            
 
             // Add application services.
             services.AddTransient<IEmailSender, AuthMessageSender>();
