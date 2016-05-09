@@ -1,0 +1,11 @@
+﻿
+@using (Html.BeginForm("Send", "Home", FormMethod.Post))
+{
+    <label>Number: <input type="number" name="number"/></label>
+    <label>Message: <input type="text" name="message"/></label>
+    <input type="submit" value="Send Message"/>
+}
+
+<div>Response: @ViewBag.response</div>
+<div>To: @ViewBag.number</div>
+<div>Message: @ViewBag.message</div>
