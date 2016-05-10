@@ -14,24 +14,42 @@ using InstaSharp;
 using Microsoft.Extensions.DependencyInjection;
 using System.Text;
 using InstaSharp.Models.Responses;
+using System.IO;
+using System.Runtime.Serialization.Formatters.Binary;
 
 namespace DoThumbThing.Controllers
 {
     public class HomeController : Controller
     {
-        public async Task<IActionResult> Index()
+
+        public OAuthResponse GetOAuthResponse()
         {
             byte[] oAuthResponse;
             var lilBool = HttpContext.Session.TryGetValue("InstaSharp.AuthInfo", out oAuthResponse);
             if (!lilBool)
             {
-                return RedirectToAction("InstagramLogin");
-            } else
-            {
-                var token = Encoding.ASCII.GetString(oAuthResponse);
-                var users = new InstaSharp.Endpoints.Users(config, new OAuthResponse(token));
+                return null;
             }
-            return View();
+            else
+            {
+                using (MemoryStream stream = new MemoryStream(oAuthResponse, 0, oAuthResponse.Length))
+                {
+                    stream.Write(oAuthResponse, 0, oAuthResponse.Length);
+                    stream.Position = 0;
+                    var token = new BinaryFormatter().Deserialize(stream) as OAuthResponse;
+                    return token;
+                }
+            }
+        }
+        public IActionResult Index()
+        {
+            var token = GetOAuthResponse();
+            if (token == null)
+            {
+                return RedirectToAction("InstagramLogin");
+            }
+            var users = new InstaSharp.Endpoints.Users(config, token);
+            return View(users);
         }
 
         public IActionResult About()
@@ -52,11 +70,9 @@ namespace DoThumbThing.Controllers
         {
             return View();
         }
-
-
-
+        
         [HttpPost]
-        public async Task<IActionResult> Send()
+        public IActionResult Send()
         {
             var number = "+1"+Request.Form["number"].ToString();
             var body = Request.Form["message"].ToString();
@@ -129,9 +145,15 @@ namespace DoThumbThing.Controllers
 
             //now call back to instgram and include the code we got along with client secret
             var oauthResponse = await auth.RequestToken(code);
-
+            byte[] token;
             // both the client secret and token are considered 
-            HttpContext.Session.Set("InstaSharp.AuthInfo", Encoding.ASCII.GetBytes(oauthResponse.AccessToken));
+            // serialize object to store to session
+            using (MemoryStream ms = new MemoryStream())
+            {
+                new BinaryFormatter().Serialize(ms, oauthResponse);
+                token = ms.ToArray();
+            }
+            HttpContext.Session.Set("InstaSharp.AuthInfo", token);
 
             return View("Index");
 

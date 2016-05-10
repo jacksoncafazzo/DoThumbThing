@@ -18,6 +18,7 @@ namespace DoThumbThing.Controllers
     [Authorize]
     public class AccountController : Controller
     {
+        //private readonly Microsoft.AspNet.Identity.UserManager<ApplicationUser> _userManager;
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly SignInManager<ApplicationUser> _signInManager;
         private readonly IEmailSender _emailSender;
